@@ -77,8 +77,9 @@ Perfect for:
 
 ### Option 2 — Clone the Repo
 ```bash
-git clone https://github.com/your-username/3d-polished-stepper.git
-cd 3d-polished-stepper
+git clone https://github.com/abdurrab70/3d-setup-progress.git
+
+
 ```
 Then open `index.html` in your browser.
 
