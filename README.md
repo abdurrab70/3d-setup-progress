@@ -187,7 +187,7 @@ Currently set to **5 steps**. To add/remove:
 ## 📁 Project Structure
 
 ```
-3d-polished-stepper/
+3d-setup-progress/
 │
 ├── index.html          # Complete standalone file
 │                       # (HTML + CSS + JS in one place)
