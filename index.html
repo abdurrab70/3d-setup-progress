@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Setup Progress</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ===== Darker slate gradient background ===== */
+    body {
+      background:
+        radial-gradient(900px 500px at 15% -10%, rgba(139,92,246,0.20), transparent 60%),
+        radial-gradient(800px 400px at 100% 0%, rgba(99,102,241,0.16), transparent 60%),
+        linear-gradient(135deg, #0b1220 0%, #111a2e 45%, #1e293b 100%);
+      min-height: 100vh;
+    }
+
+    .stepper-card {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow:
+        0 30px 80px -20px rgba(0,0,0,0.6),
+        0 12px 30px -10px rgba(0,0,0,0.4),
+        0 0 0 1px rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.6);
+    }
+
+    /* ===== Stepper layout ===== */
+    .steps-container {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      --circle: 44px;
+      --r: 22px;
+    }
+    @media (min-width: 640px) {
+      .steps-container { --circle: 48px; --r: 24px; }
+    }
+
+    .step-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .track-wrap {
+      position: absolute;
+      top: calc(var(--circle) / 2);
+      left: 10%;
+      right: 10%;
+      height: 6px;
+      transform: translateY(-50%);
+      border-radius: 9999px;
+      background: linear-gradient(180deg, #cbd5e1, #94a3b8);
+      box-shadow:
+        inset 0 2px 3px rgba(15, 23, 42, 0.2),
+        inset 0 -1px 1px rgba(255, 255, 255, 0.6);
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .track-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      border-radius: 9999px;
+      background: linear-gradient(90deg, #c4b5fd 0%, #a855f7 45%, #7c3aed 100%);
+      box-shadow:
+        0 0 12px rgba(139, 92, 246, 0.7),
+        inset 0 1px 1px rgba(255, 255, 255, 0.5),
+        inset 0 -1px 2px rgba(76, 29, 149, 0.4);
+      transition: width 0.85s cubic-bezier(0.65, 0, 0.35, 1),
+                  background 0.5s ease, box-shadow 0.5s ease;
+    }
+    .track-fill::after {
+      content: "";
+      position: absolute;
+      right: -1px; top: 50%;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      transform: translateY(-50%) scale(0.6);
+      background: radial-gradient(circle, #ffffff 0%, #e9d5ff 45%, rgba(168,85,247,0) 70%);
+      opacity: 0.95;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .track-fill[data-empty="true"]::after { opacity: 0; transform: translateY(-50%) scale(0); }
+
+    /* ===== Step Circle ===== */
+    .step-circle {
+      position: relative;
+      width: var(--circle);
+      height: var(--circle);
+      border-radius: 9999px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #ffffff, #e8ecf3);
+      box-shadow:
+        0 4px 10px rgba(15, 23, 42, 0.12),
+        0 2px 4px rgba(15, 23, 42, 0.08),
+        inset 0 1px 1px rgba(255, 255, 255, 0.9),
+        inset 0 -2px 4px rgba(15, 23, 42, 0.08);
+      transition:
+        transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+        background 0.5s ease,
+        color 0.4s ease;
+      z-index: 10;
+      color: #94a3b8;
+      font-weight: 700;
+      overflow: hidden;
+    }
+
+    .fill-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 9999px;
+      background: linear-gradient(145deg, #a855f7, #7c3aed);
+      transform: scale(0);
+      transform-origin: center;
+      transition: transform 0.6s cubic-bezier(0.34, 1.4, 0.64, 1);
+      z-index: 1;
+    }
+    .step-circle.is-filled .fill-overlay { transform: scale(1); }
+
+    .step-circle.is-active {
+      background: linear-gradient(145deg, #ffffff, #f5f3ff);
+      color: #7c3aed;
+      transform: scale(1.12) translateY(-2px);
+      box-shadow:
+        0 10px 22px rgba(139, 92, 246, 0.35),
+        0 4px 8px rgba(139, 92, 246, 0.2),
+        inset 0 2px 2px rgba(255, 255, 255, 1),
+        inset 0 -2px 6px rgba(139, 92, 246, 0.15),
+        0 0 0 5px rgba(139, 92, 246, 0.15);
+    }
+
+    .step-circle.is-completed {
+      color: #ffffff;
+      transform: scale(1.05);
+      box-shadow:
+        0 8px 20px rgba(124, 58, 237, 0.45),
+        0 3px 6px rgba(124, 58, 237, 0.3),
+        inset 0 2px 2px rgba(255, 255, 255, 0.4),
+        inset 0 -3px 6px rgba(76, 29, 149, 0.5);
+    }
+
+    .step-number,
+    .check-icon {
+      grid-area: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+      will-change: opacity, transform;
+      line-height: 1;
+      position: relative;
+      z-index: 2;
+    }
+    .check-icon {
+      transform: scale(0.4);
+      opacity: 0;
+      width: 55%;
+      height: 55%;
+    }
+    .step-circle.is-completed .step-number { opacity: 0; transform: scale(0.6); }
+    .step-circle.is-completed .check-icon { opacity: 1; transform: scale(1); }
+
+    .step-label {
+      transition: color 0.45s ease, font-weight 0.3s ease;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .step-label.is-active { color: #7c3aed; font-weight: 700; }
+    .step-label.is-completed { color: #7c3aed; font-weight: 600; }
+
+    /* ===== Polished step text ===== */
+    .step-text-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      background: linear-gradient(180deg, #ffffff, #f5f3ff);
+      border: 1px solid rgba(168, 85, 247, 0.18);
+      border-radius: 9999px;
+      box-shadow:
+        0 4px 12px rgba(139, 92, 246, 0.10),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .step-text-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 9999px;
+      background: linear-gradient(145deg, #a855f7, #7c3aed);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.8rem;
+      box-shadow:
+        0 3px 6px rgba(124,58,237,0.4),
+        inset 0 1px 1px rgba(255,255,255,0.4),
+        inset 0 -2px 3px rgba(76,29,149,0.4);
+    }
+    .step-text-wrap .total { color: #94a3b8; font-weight: 600; font-size: 0.85rem; }
+    .step-text-wrap .divider {
+      width: 1px; height: 16px;
+      background: linear-gradient(180deg, transparent, #e2e8f0, transparent);
+    }
+    .step-text-wrap .label {
+      color: #475569;
+      font-weight: 600;
+      font-size: 0.9rem;
+      letter-spacing: 0.01em;
+    }
+
+    @keyframes bumpBadge {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+    .step-text-badge.bump { animation: bumpBadge 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+    /* ===== Buttons ===== */
+    .btn-3d {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 2.5rem;
+      padding: 0 1.1rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.825rem;
+      letter-spacing: 0.01em;
+      border: 1px solid transparent;
+      transition:
+        transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.25s ease,
+        background 0.25s ease,
+        border-color 0.25s ease,
+        opacity 0.35s ease;
+      will-change: transform;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-3d:active:not(:disabled) { transform: translateY(1.5px) scale(0.98); }
+    .btn-3d:disabled { opacity: 0.4; cursor: not-allowed; filter: saturate(0.6); }
+
+    .btn-prev {
+      color: #475569;
+      background: linear-gradient(180deg, #ffffff, #f1f5f9);
+      border-color: #e2e8f0;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.9) inset,
+        0 -2px 0 rgba(15,23,42,0.05) inset,
+        0 3px 8px rgba(15,23,42,0.08),
+        0 1px 2px rgba(15,23,42,0.06);
+    }
+    .btn-prev:hover:not(:disabled) {
+      background: linear-gradient(180deg, #ffffff, #e9eef5);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.9) inset,
+        0 -2px 0 rgba(15,23,42,0.05) inset,
+        0 6px 14px rgba(15,23,42,0.12),
+        0 2px 4px rgba(15,23,42,0.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-prev-wrap {
+      transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  width 0.4s ease, margin 0.4s ease;
+      opacity: 0;
+      transform: translateX(-8px) scale(0.92);
+      pointer-events: none;
+      width: 0;
+      overflow: hidden;
+    }
+    .btn-prev-wrap.visible {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+      width: auto;
+    }
+
+    .btn-next {
+      color: #fff;
+      background: linear-gradient(180deg, #a855f7 0%, #7c3aed 100%);
+      border-color: rgba(255,255,255,0.08);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.4) inset,
+        0 -3px 0 rgba(76,29,149,0.6) inset,
+        0 8px 18px rgba(124,58,237,0.4),
+        0 2px 5px rgba(124,58,237,0.3);
+    }
+    .btn-next:hover:not(:disabled) {
+      background: linear-gradient(180deg, #b06bf8 0%, #6d28d9 100%);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.45) inset,
+        0 -3px 0 rgba(76,29,149,0.65) inset,
+        0 12px 24px rgba(124,58,237,0.5),
+        0 3px 7px rgba(124,58,237,0.35);
+      transform: translateY(-1px);
+    }
+    .btn-next:active:not(:disabled) {
+      transform: translateY(2px) scale(0.98);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.35) inset,
+        0 -1px 0 rgba(76,29,149,0.5) inset,
+        0 3px 8px rgba(124,58,237,0.35);
+    }
+    .btn-next.is-busy { pointer-events: none; opacity: 0.85; }
+
+    /* ===== Success page ===== */
+    .success-view {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(900px 500px at 20% 0%, rgba(139,92,246,0.25), transparent 60%),
+        radial-gradient(800px 500px at 100% 100%, rgba(99,102,241,0.2), transparent 60%),
+        linear-gradient(135deg, #0b1220 0%, #111a2e 50%, #1e293b 100%);
+      z-index: 50;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+      padding: 1rem;
+    }
+    .success-view.show { opacity: 1; visibility: visible; }
+
+    .success-card {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow:
+        0 30px 80px -20px rgba(0,0,0,0.6),
+        0 12px 30px -10px rgba(0,0,0,0.4),
+        0 0 0 1px rgba(255,255,255,0.06);
+      transform: scale(0.92) translateY(24px);
+      opacity: 0;
+      transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  opacity 0.5s ease;
+    }
+    .success-view.show .success-card {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+
+    .big-tick {
+      width: clamp(6rem, 22vw, 8rem);
+      height: clamp(6rem, 22vw, 8rem);
+      border-radius: 9999px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #a855f7, #7c3aed);
+      box-shadow:
+        0 18px 40px rgba(124, 58, 237, 0.5),
+        0 6px 12px rgba(124, 58, 237, 0.35),
+        inset 0 3px 3px rgba(255, 255, 255, 0.5),
+        inset 0 -4px 8px rgba(76, 29, 149, 0.55);
+      transform: scale(0.4);
+      opacity: 0;
+      transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s,
+                  opacity 0.4s ease 0.25s;
+    }
+    .success-view.show .big-tick { transform: scale(1); opacity: 1; }
+    .big-tick svg {
+      width: 55%; height: 55%;
+      color: white;
+      stroke-dasharray: 32;
+      stroke-dashoffset: 32;
+      transition: stroke-dashoffset 0.6s ease 0.75s;
+    }
+    .success-view.show .big-tick svg { stroke-dashoffset: 0; }
+
+    .tick-ring {
+      position: absolute;
+      inset: -8px;
+      border-radius: 9999px;
+      border: 2px solid rgba(168, 85, 247, 0.5);
+      opacity: 0;
+    }
+    .success-view.show .tick-ring { animation: ringPulse 1.8s ease-out infinite; }
+    @keyframes ringPulse {
+      0%   { transform: scale(1);   opacity: 0.7; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    /* =====================================================
+       SINGLE 50% ARC SPINNER — Purple
+       Rotates full 360° (one full turn), then reverses
+       full 360° back to start. Clean infinite loop.
+       ===================================================== */
+    .spin-simple {
+      position: relative;
+      width: 4.5rem;
+      height: 4.5rem;
+      display: grid;
+      place-items: center;
+      filter: drop-shadow(0 8px 16px rgba(124, 58, 237, 0.25));
+    }
+
+    /* Slate base track */
+    .spin-simple .track {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: #e2e8f0;
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+              mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+      box-shadow:
+        inset 0 1px 2px rgba(15, 23, 42, 0.10),
+        inset 0 -1px 1px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Purple 50% arc — JS-driven rotation with random start/end */
+    .spin-simple .arc-purple {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg,
+        #c084fc 0deg,
+        #a855f7 90deg,
+        #7c3aed 180deg,
+        rgba(124, 58, 237, 0) 180deg,
+        rgba(124, 58, 237, 0) 360deg);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+              mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+      transform: rotate(0deg);
+      will-change: transform;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6">
+
+  <!-- ============ STEPPER VIEW ============ -->
+  <div id="stepperView" class="stepper-card w-full max-w-2xl rounded-3xl p-6 sm:p-8 md:p-10">
+    <div class="text-center mb-8 sm:mb-9">
+      <h1 class="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Setup Progress</h1>
+      <p class="text-xs sm:text-sm text-slate-400 mt-1">Complete all steps to finish</p>
+    </div>
+
+    <div class="relative mb-8 sm:mb-10">
+      <div class="steps-container">
+        <div class="track-wrap">
+          <div id="trackFill" class="track-fill" data-empty="true"></div>
+        </div>
+
+        <div class="step-col" data-step="1">
+          <div class="step-circle">
+            <span class="fill-overlay"></span>
+            <span class="step-number text-xs sm:text-sm">1</span>
+            <svg class="check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="step-label mt-2 sm:mt-3 text-[10px] sm:text-sm font-medium text-slate-400">Account</span>
+        </div>
+
+        <div class="step-col" data-step="2">
+          <div class="step-circle">
+            <span class="fill-overlay"></span>
+            <span class="step-number text-xs sm:text-sm">2</span>
+            <svg class="check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="step-label mt-2 sm:mt-3 text-[10px] sm:text-sm font-medium text-slate-400">Profile</span>
+        </div>
+
+        <div class="step-col" data-step="3">
+          <div class="step-circle">
+            <span class="fill-overlay"></span>
+            <span class="step-number text-xs sm:text-sm">3</span>
+            <svg class="check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="step-label mt-2 sm:mt-3 text-[10px] sm:text-sm font-medium text-slate-400">Details</span>
+        </div>
+
+        <div class="step-col" data-step="4">
+          <div class="step-circle">
+            <span class="fill-overlay"></span>
+            <span class="step-number text-xs sm:text-sm">4</span>
+            <svg class="check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="step-label mt-2 sm:mt-3 text-[10px] sm:text-sm font-medium text-slate-400">Payment</span>
+        </div>
+
+        <div class="step-col" data-step="5">
+          <div class="step-circle">
+            <span class="fill-overlay"></span>
+            <span class="step-number text-xs sm:text-sm">5</span>
+            <svg class="check-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="step-label mt-2 sm:mt-3 text-[10px] sm:text-sm font-medium text-slate-400">Done</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mb-7 sm:mb-8">
+      <div class="step-text-wrap">
+        <span id="stepBadge" class="step-text-badge">1</span>
+        <span class="total">of 5</span>
+        <span class="divider"></span>
+        <span id="stepLabel" class="label">Account</span>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center gap-3">
+      <div id="prevWrap" class="btn-prev-wrap">
+        <button id="prevBtn" class="btn-3d btn-prev">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Previous
+        </button>
+      </div>
+      <button id="nextBtn" class="btn-3d btn-next ml-auto">
+        Next
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ SUCCESS VIEW ============ -->
+  <div id="successView" class="success-view">
+    <div class="success-card w-full max-w-md rounded-3xl p-8 sm:p-10 text-center">
+
+      <div class="relative inline-grid place-items-center mb-6">
+        <span class="tick-ring"></span>
+        <div class="big-tick">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+      </div>
+
+      <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Congratulations! 🎉</h2>
+      <p class="text-slate-500 text-sm sm:text-base mb-8">
+        You've completed all steps successfully. Your account is now fully set up.
+      </p>
+
+      <div class="flex flex-col items-center gap-4">
+        <div class="spin-simple" aria-label="Redirecting">
+          <span class="track"></span>
+          <span id="arcPurple" class="arc-purple"></span>
+        </div>
+        <p class="text-sm sm:text-base font-semibold text-purple-600 mt-2">Redirecting to dashboard…</p>
+        <p class="text-xs text-slate-400">almost there!</p>
+      </div>
+
+      <button id="backBtn"
+        class="mt-8 text-xs sm:text-sm text-slate-400 hover:text-purple-600 underline underline-offset-4 transition-colors">
+        ← Back to steps
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const steps = document.querySelectorAll('[data-step]');
+    const trackFill = document.getElementById('trackFill');
+    const prevBtn = document.getElementById('prevBtn');
+    const prevWrap = document.getElementById('prevWrap');
+    const nextBtn = document.getElementById('nextBtn');
+    const stepBadge = document.getElementById('stepBadge');
+    const stepLabel = document.getElementById('stepLabel');
+    const stepperView = document.getElementById('stepperView');
+    const successView = document.getElementById('successView');
+    const backBtn = document.getElementById('backBtn');
+
+    const labels = ['Account', 'Profile', 'Details', 'Payment', 'Done'];
+    let currentStep = 1;
+    const totalSteps = steps.length;
+    let redirectTimer = null;
+    let isAnimating = false;
+    let allDone = false;
+
+    function setNextButtonLabel() {
+      if (allDone) {
+        nextBtn.innerHTML = `Finish <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
+      } else if (currentStep === totalSteps) {
+        nextBtn.innerHTML = `Finish <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
+      } else {
+        nextBtn.innerHTML = `Next <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
+      }
+    }
+
+    function updateStepText() {
+      stepBadge.textContent = currentStep;
+      stepLabel.textContent = labels[currentStep - 1];
+      stepBadge.classList.remove('bump');
+      void stepBadge.offsetWidth;
+      stepBadge.classList.add('bump');
+    }
+
+    function setPrevVisible(show) {
+      if (show) prevWrap.classList.add('visible');
+      else prevWrap.classList.remove('visible');
+    }
+
+    function completeStep(stepIndex, onDone) {
+      const stepEl = steps[stepIndex];
+      const circle = stepEl.querySelector('.step-circle');
+      const label = stepEl.querySelector('.step-label');
+
+      circle.classList.add('is-filled');
+
+      setTimeout(() => {
+        circle.classList.add('is-completed');
+        circle.classList.remove('is-active');
+        label.classList.add('is-completed');
+        label.classList.remove('is-active');
+
+        setTimeout(() => {
+          if (onDone) onDone();
+        }, 380);
+      }, 480);
+    }
+
+    function advanceLine() {
+      const percent = ((currentStep - 1) / (totalSteps - 1)) * 100;
+      trackFill.style.width = percent + '%';
+      trackFill.dataset.empty = percent === 0 ? 'true' : 'false';
+    }
+
+    function goNext() {
+      if (isAnimating) return;
+
+      if (allDone) { showSuccess(); return; }
+
+      isAnimating = true;
+      nextBtn.classList.add('is-busy');
+
+      completeStep(currentStep - 1, () => {
+        if (currentStep < totalSteps) {
+          currentStep++;
+          advanceLine();
+
+          const nextEl = steps[currentStep - 1];
+          nextEl.querySelector('.step-circle').classList.add('is-active');
+          nextEl.querySelector('.step-label').classList.add('is-active');
+
+          updateStepText();
+          setNextButtonLabel();
+
+          if (currentStep >= 2) setPrevVisible(true);
+
+          isAnimating = false;
+          nextBtn.classList.remove('is-busy');
+        } else {
+          allDone = true;
+          advanceLine();
+          updateStepText();
+          setNextButtonLabel();
+          setPrevVisible(true);
+          isAnimating = false;
+          nextBtn.classList.remove('is-busy');
+        }
+      });
+    }
+
+    function goPrev() {
+      if (isAnimating) return;
+
+      if (allDone) {
+        isAnimating = true;
+        const lastEl = steps[totalSteps - 1];
+        const lastCircle = lastEl.querySelector('.step-circle');
+        const lastLabel = lastEl.querySelector('.step-label');
+        lastCircle.classList.remove('is-completed', 'is-filled');
+        lastCircle.classList.add('is-active');
+        lastLabel.classList.remove('is-completed');
+        lastLabel.classList.add('is-active');
+        allDone = false;
+        setNextButtonLabel();
+        updateStepText();
+        setTimeout(() => { isAnimating = false; }, 400);
+        return;
+      }
+
+      if (currentStep <= 1) return;
+
+      isAnimating = true;
+      prevBtn.classList.add('is-busy');
+
+      const curEl = steps[currentStep - 1];
+      curEl.querySelector('.step-circle').classList.remove('is-active');
+      curEl.querySelector('.step-label').classList.remove('is-active');
+
+      currentStep--;
+
+      const targetEl = steps[currentStep - 1];
+      const targetCircle = targetEl.querySelector('.step-circle');
+      const targetLabel = targetEl.querySelector('.step-label');
+      targetCircle.classList.remove('is-filled', 'is-completed');
+      targetCircle.classList.add('is-active');
+      targetLabel.classList.remove('is-completed');
+      targetLabel.classList.add('is-active');
+
+      advanceLine();
+      updateStepText();
+      setNextButtonLabel();
+
+      if (currentStep === 1) setPrevVisible(false);
+
+      setTimeout(() => {
+        isAnimating = false;
+        prevBtn.classList.remove('is-busy');
+      }, 400);
+    }
+
+    function showSuccess() {
+      stepperView.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+      stepperView.style.opacity = '0';
+      stepperView.style.transform = 'scale(0.96)';
+      setTimeout(() => {
+        stepperView.style.display = 'none';
+        successView.classList.add('show');
+        startRandomSpin();
+      }, 350);
+
+      clearTimeout(redirectTimer);
+      redirectTimer = setTimeout(() => {
+        // >>> Apnar next page URL ekhane <<<
+        // window.location.href = 'dashboard.html';
+        console.log('Redirecting to dashboard...');
+      }, 4500);
+    }
+
+    function hideSuccess() {
+      clearTimeout(redirectTimer);
+      successView.classList.remove('show');
+      stopRandomSpin();
+      setTimeout(() => {
+        stepperView.style.display = '';
+        void stepperView.offsetWidth;
+        stepperView.style.opacity = '1';
+        stepperView.style.transform = 'scale(1)';
+      }, 350);
+    }
+
+    /* ============================================================
+       RANDOM 360° SPINNER
+       Each cycle:
+         - pick a random start angle
+         - animate full 360° turn to a new end angle
+         - pause briefly
+         - repeat
+       So start/end points are always random and different.
+       ============================================================ */
+    const arcPurple = document.getElementById('arcPurple');
+    let spinTimer = null;
+    let spinActive = false;
+    let currentAngle = 0;
+
+    function randomAngle() {
+      return Math.floor(Math.random() * 360);
+    }
+
+    function nextSpinCycle() {
+      if (!spinActive) return;
+
+      // Pick a new random target angle (always a full 360° turn from current)
+      const target = currentAngle + 360 + randomAngle(); // + random extra offset (0–359)
+
+      arcPurple.style.transition = 'transform 1.6s cubic-bezier(0.45, 0, 0.55, 1)';
+      // Force reflow so transition applies cleanly
+      void arcPurple.offsetWidth;
+      arcPurple.style.transform = `rotate(${target}deg)`;
+      currentAngle = target;
+
+      // After the 360° turn completes, pause then start again from a new random start
+      spinTimer = setTimeout(() => {
+        if (!spinActive) return;
+        // Small pause then next cycle
+        spinTimer = setTimeout(nextSpinCycle, 200);
+      }, 1700);
+    }
+
+    function startRandomSpin() {
+      if (spinActive) return;
+      spinActive = true;
+      // Start from a random position
+      currentAngle = randomAngle();
+      arcPurple.style.transition = 'none';
+      arcPurple.style.transform = `rotate(${currentAngle}deg)`;
+      void arcPurple.offsetWidth;
+      // Begin cycle after a short tick
+      spinTimer = setTimeout(nextSpinCycle, 100);
+    }
+
+    function stopRandomSpin() {
+      spinActive = false;
+      clearTimeout(spinTimer);
+    }
+
+    steps[0].querySelector('.step-circle').classList.add('is-active');
+    steps[0].querySelector('.step-label').classList.add('is-active');
+    updateStepText();
+    setNextButtonLabel();
+    setPrevVisible(false);
+
+    nextBtn.addEventListener('click', goNext);
+    prevBtn.addEventListener('click', goPrev);
+    backBtn.addEventListener('click', hideSuccess);
+  </script>
+</body>
+</html>
