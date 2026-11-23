@@ -244,6 +244,6 @@ Built with a love for **micro-interactions** — the small details that make int
 
 ### ⭐ If this helped you, consider giving it a star!
 
-**Made with 💜 and a lot of `cubic-bezier()`**
+**Develop by Md. Abdur Rab**
 
 </div>
